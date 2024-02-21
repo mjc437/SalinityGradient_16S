@@ -1,0 +1,63 @@
+---
+title: "Inter ASVs with DADA2"
+output: html_document
+date: "`r Sys.Date()`"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, 
+                      fig.align = "center",
+                      fig.path = "../figures/01_DADA2/") #send any figure to this location 
+```
+
+# Goals of this file 
+
+1. Use raw fastq files and generate quality plots to assess quality of reads.
+2. filter and trim out bad sequences and bases from our sequencing files. 
+3. Write out fastq files with high quality sequences. 
+4. Evaluate the quaity from our filter and trim 
+
+```{r}
+#install.packages("devtools")
+library(devtools)
+
+#devtools::install_github("benjjneb/dada2")
+library(dada2)
+```
+
+
+# Load Data 
+```{r load-data}
+# set the raw fastq path to the raw sequences files 
+# Path to the fastq files
+raw_fastqs_path <- "data/01_DADA2/01_raw_gzipped_fastqs"
+raw_fastqs_path
+
+# What files are in this path? 
+list.files(raw_fastqs_path)
+
+#How many files are there?
+str(list.files(raw_fastqs_path))
+
+# Create a vector of forward reads 
+forward_reads <- list.files(raw_fastqs_path, pattern = "R1_001.fastq.gz", full.names = TRUE)
+head(forward_reads)
+
+# Create a vector of reverse reads
+reverse_reads <- list.files(raw_fastqs_path, pattern = "R2_001.fastq.gz", full.names = TRUE)
+head(reverse_reads)
+```
+
+# Quality Plots 
+```{r raw-quality-plot}
+# Randomly select 2 samples from dataset to evaluate 
+random_samples <- sample(1:length(reverse_reads), size = 2)
+random_samples 
+
+# Calculate and Plot quality if these two samples 
+plotQualityProfile(forward_reads[random_samples])
+plotQualityProfile(reverse_reads[random_samples]) #the chemistry on the reverse read is not as precises as the forward reads, so the reverse reads will be lower quality
+```
+
+
+
