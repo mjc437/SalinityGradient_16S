@@ -59,5 +59,24 @@ plotQualityProfile(forward_reads[random_samples])
 plotQualityProfile(reverse_reads[random_samples]) #the chemistry on the reverse read is not as precises as the forward reads, so the reverse reads will be lower quality
 ```
 
+# Prepare a placeholder for filtered reads
+```{r prep-filtered-sequences}
+# vector of our samples, extract sample name from files
+samples <- sapply(strsplit(basename(forward_reads), "_"),`[`,1)
+
+# Place filtered reads into filtered_fastqs_path
+filtered_fastqs_path <- "data/01_DADA2/02_filtered_fastqs"
+
+#create 2 variales: filtered_F, filtered_R
+filtered_forward_reads <- file.path(filtered_fastqs_path, paste0(samples, "_R1_filtered.fastq.gz"))
+filtered_reverse_reads <- file.path(filtered_fastqs_path, paste0(samples, "_R2_filtered.fastq.gz"))
+```
+
+
+# Filter and Trim Reads
+```{r filter-and-trim}
+
+```
+
 
 
