@@ -10,12 +10,21 @@ knitr::opts_chunk$set(echo = TRUE,
                       fig.path = "../figures/01_DADA2/") #send any figure to this location 
 ```
 
-# Goals of this file 
+# Before you start
 
-1. Use raw fastq files and generate quality plots to assess quality of reads.
-2. filter and trim out bad sequences and bases from our sequencing files. 
-3. Write out fastq files with high quality sequences. 
-4. Evaluate the quaity from our filter and trim 
+## Set my seed
+
+```{r set-seed}
+# Any number can be chosen 
+set.seed(902)
+```
+
+# Goals of this file
+
+1.  Use raw fastq files and generate quality plots to assess quality of reads.
+2.  filter and trim out bad sequences and bases from our sequencing files.
+3.  Write out fastq files with high quality sequences.
+4.  Evaluate the quaity from our filter and trim
 
 ```{r}
 #install.packages("devtools")
@@ -25,8 +34,8 @@ library(devtools)
 library(dada2)
 ```
 
+# Load Data
 
-# Load Data 
 ```{r load-data}
 # set the raw fastq path to the raw sequences files 
 # Path to the fastq files
@@ -48,7 +57,8 @@ reverse_reads <- list.files(raw_fastqs_path, pattern = "R2_001.fastq.gz", full.n
 head(reverse_reads)
 ```
 
-# Quality Plots 
+# Quality Plots
+
 ```{r raw-quality-plot}
 # Randomly select 2 samples from dataset to evaluate 
 random_samples <- sample(1:length(reverse_reads), size = 2)
@@ -60,6 +70,7 @@ plotQualityProfile(reverse_reads[random_samples]) #the chemistry on the reverse 
 ```
 
 # Prepare a placeholder for filtered reads
+
 ```{r prep-filtered-sequences}
 # vector of our samples, extract sample name from files
 samples <- sapply(strsplit(basename(forward_reads), "_"),`[`,1)
@@ -72,11 +83,25 @@ filtered_forward_reads <- file.path(filtered_fastqs_path, paste0(samples, "_R1_f
 filtered_reverse_reads <- file.path(filtered_fastqs_path, paste0(samples, "_R2_filtered.fastq.gz"))
 ```
 
-
 # Filter and Trim Reads
-```{r filter-and-trim}
 
+Parameters of filter and trim **Depend on the DATASET**
+
+-   `maxN` = number of N bases. Remove all Ns from the data
+-   `maxEE` = Quality filtering threshold applied to expected errors. Here, if there's 2 expected errors, it's ok. But more than 2, throw the sequence away. Two values, first is for forward; second is for reverse reads.
+- `trimLeft` = remove first three basepairs 
+- `trunQ` = truncate reads at the first instance of a of a quality score less than 2
+
+```{r filter-and-trim}
+#assign a vector to filtered reads
+#trim out poor bases, first 3 bps on F reads
+#write out filtered fastq files 
+filtered_reads <- filterAndTrim(fwd = forward_reads, filt = filtered_forward_reads, rev = reverse_reads, filt.rev = filtered_reverse_reads, maxN = c(2,2), trimLeft = 3, truncQ = 2, rm.phix = TRUE, compress = TRUE) #multithread = TRUE
 ```
 
+# Session Information
 
-
+```{r session-info}
+#Ensure reproducibility
+devtools::session_info()
+```
