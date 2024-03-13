@@ -1,7 +1,12 @@
 ---
 title: "Inter ASVs with DADA2"
+author: "Maya Craig"
 output: html_document
+  toc: yes
+  toc_float:
+    collapsed: no
 date: "`r Sys.Date()`"
+
 ---
 
 ```{r setup, include=FALSE}
@@ -25,6 +30,15 @@ set.seed(902)
 2.  filter and trim out bad sequences and bases from our sequencing files.
 3.  Write out fastq files with high quality sequences.
 4.  Evaluate the quaity from our filter and trim
+5.  Infer Errors on forward and reverse reads individually
+6.  Identified ASVs on forwars and reverse reads separaetly, using the error model 
+7.  Merge forward and reverse ASVs into "contiguous ASVs"
+8.  Generate the ASV count table ('otu_table` input for phyloseq)
+
+Outputs that we need: 
+1. ASV Count Table `otu_table`
+2. Taxonomy Table `tax_table`
+3. Sample Information: `sample_data` track the reads lots throughout DADA2 workflow 
 
 ```{r}
 #install.packages("devtools")
@@ -32,6 +46,9 @@ library(devtools)
 
 #devtools::install_github("benjjneb/dada2")
 library(dada2)
+
+#install.packages("tidyverse")
+library(tidyverse)
 ```
 
 # Load Data
@@ -65,8 +82,8 @@ random_samples <- sample(1:length(reverse_reads), size = 2)
 random_samples 
 
 # Calculate and Plot quality if these two samples 
-plotQualityProfile(forward_reads[random_samples])
-plotQualityProfile(reverse_reads[random_samples]) #the chemistry on the reverse read is not as precises as the forward reads, so the reverse reads will be lower quality
+plotQualityProfile(forward_reads[random_samples]) + labs(title = "Forward Read Raw Quality")
+plotQualityProfile(reverse_reads[random_samples]) + labs(title = "Reverse Read Raw Quality") #the chemistry on the reverse read is not as precises as the forward reads, so the reverse reads will be lower quality
 ```
 
 # Prepare a placeholder for filtered reads
@@ -99,8 +116,89 @@ Parameters of filter and trim **Depend on the DATASET**
 filtered_reads <- filterAndTrim(fwd = forward_reads, filt = filtered_forward_reads, rev = reverse_reads, filt.rev = filtered_reverse_reads, maxN = c(2,2), trimLeft = 3, truncQ = 2, rm.phix = TRUE, compress = TRUE) #multithread = TRUE
 ```
 
-# Session Information
 
+# Trimmed Quality plots 
+
+```{r filterTrim-quality-plots}
+plotQualityProfile(filtered_forward_reads[random_samples]) + labs(title = "Trimmed Forward Read Quality")
+plotQualityProfile(filtered_reverse_reads[random_samples]) + labs(title = "Trimmed Reverse Read Quality")
+
+```
+
+
+## Aggregated Trimmed Plots 
+```{r}
+#aggregate all QC plots 
+#install and library patchwork 
+#plotQualityProfile(filtered_forward_reads, aggregate = TRUE) + plot(filtered_reverse_reads, aggregate, = TRUE)
+
+```
+
+## Stats on read output from `filterAndTrim`
+```{r filterTrim-stats}
+filtered_df <- as.data.frame(str(filtered_reads))
+head(filtered_df)
+```
+
+```{r}
+filtered_df %>%
+  reframe(median_reads_in = median(reads.in),
+          median_reads_out = median(reads.out),
+          median_percent_retained = (median(reads.out)/median(reads.in)))
+```
+
+
+# Error Modelling
+
+**NOTE:** Run seperately on each illumina dataset
+```{r learn-errors}
+# Forward reads 
+error_forward_reads <- 
+  learnErrors(filtered_forward_reads) #multithread = TRUE
+#Plot reverse
+plotErrors(error_forward_reads, nominalQ = TRUE) + labs(title = "Forward Read Error Model")
+
+# Reverse reads
+error_reverse_reads <- 
+  learnErrors(filtered_reverse_reads) #multithread = TRUE
+#Plot reverse 
+plotErrors(error_reverse_reads, nominalQ = TRUE) + labs(title = "Forward Read Error Model")
+```
+
+# Infer ASVs 
+Note that this is happening seperately on the forward and reverse reads! This is unique to DADA2
+```{r infer-ASVs}
+# Infer forward ASVs
+dada_forward <- dada(filtered_forward_reads, error_forward_reads) #multithread = TRUE
+
+dada_reverse <- dada(filtered_reverse_reads, err = error_reverse_reads) #multithread = TRUE
+
+# Infer reverse ASVs
+```
+
+# Merge Forward and Reverse ASVs
+```{r merge-ASVs}
+#merge forward and reverse ASVs
+merged_ASVs <- mergePairs(dada_forward, filtered_forward_reads,
+                          dada_reverse, filtered_reverse_reads,
+                          verbose = TRUE)
+
+# Evaluate the output
+typeof(merged_ASVs)
+length(merged_ASVs)
+names(merged_ASVs)
+```
+
+
+# Generate ASV Count Table 
+```{r generate-ASV-table}
+# Create the ASV count table
+raw_ASV_table <- makeSequenceTable(merged_ASVs)
+```
+
+
+
+# Session Information
 ```{r session-info}
 #Ensure reproducibility
 devtools::session_info()

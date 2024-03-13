@@ -1,0 +1,122 @@
+---
+title: "Phyloseq PreProcessing"
+author: "Maya Craig"
+output: html_document
+date: "`r Sys.Date()`"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, 
+                      fig.align = "center",
+                      fig.path = "../figures/02_PreProcessing/")
+```
+
+# Load Libraries
+```{r load-libraries}
+library(devtools)
+#BiocManager::install("phyloseq")
+library(phyloseq)
+library(tidyverse)
+```
+# Goals
+
+Here, we will process the data into a phyloseq object. 
+
+- ASV table 
+- Taxonomy table
+- Track Reads (metadata)
+
+Then, we will remove the following: 
+
+1. Remove Chloroplast 
+2. Remove Mitochondria 
+3. Remove samples without "enough" reads.
+
+Finally, write data file of phyloseq output
+
+
+# Load Data
+
+## ASV Table
+```{r load-asv-table}
+# First. load asv table
+load("data/01_DADA2/ASV_counts.RData")
+
+#Inspect asv_tab
+head(asv_tab)[,1:5]
+
+# Fix names
+sample_names <- colnames(asv_tab) 
+samples_fixed <- sapply(strsplit(basename(sample_names), "_"),`[`,1)
+head(samples_fixed)
+
+# re-write the ASV count file to fix names 
+colnames(asv_tab) <- samples_fixed
+typeof(asv_tab)
+```
+
+## Taxonomy table 
+```{r load-tax-table}
+tax_df <- read.table("data/01_DADA2/ASV_taxonomy.tsv", sep = "\t", skip = 1)
+head(tax_df)
+
+# fix column names 
+colnames(tax_df) <- c("asv_names", "Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species", "ASV", "ASVseq")
+
+# Taxonomy table matrix 
+tax_mat <- tax_df %>%
+  tibble::column_to_rownames(., var = "asv_names") %>%
+  as.matrix()
+
+head(tax_mat)
+```
+
+## Track Reads Data 
+```{r load-track-reads}
+load("data/01_DADA2/track_read_counts.RData")
+
+# Take a look at the data 
+head(track_counts_df)
+dim(track_counts_df) #number of rows should be equal to the number of samples 
+
+#Load in metadata 
+metadata_df <-  read.csv("data/metadata.csv")
+head(metadata_df)
+dim(metadata_df)
+colnames(metadata_df)
+
+# Merge metadata_df with track_reads_df
+metadata_tracked_reads_df <- metadata_df %>%
+  left_join(., track_counts_df, by = "names") %>%
+  dplyr::select(-X) #remove column named X
+head(metadata_tracked_reads_df)
+
+#Update row.names to be sample names 
+row.names(metadata_tracked_reads_df)
+#rewrite
+row.names(metadata_tracked_reads_df) <- metadata_tracked_reads_df$names
+# Check 
+row.names(metadata_tracked_reads_df)
+
+head(metadata_tracked_reads_df)
+```
+
+# Handoff to phyloseq
+```{r phyloseq-handoff}
+# double check that everything is good 
+dim(asv_tab)
+dim(tax_mat)
+
+# Intuition Check 
+stopifnot(row.names(asv_tab) == row.names(tax_mat))
+
+# Construct the phyloseq object 
+raw_physeq <- phyloseq(otu_table(asv_tab, taxa_are_rows = TRUE),
+                       sample_data(metadata_tracked_reads_df),
+                       tax_table(tax_mat))
+raw_physeq
+
+# save this raw phyloseq object
+save(raw_physeq, file = "data/02_PreProcessing/raw_physeq.RData")
+```
+
