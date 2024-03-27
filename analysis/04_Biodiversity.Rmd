@@ -1,0 +1,113 @@
+---
+title: "Biodiversity Analysis"
+author: "Maya Craig"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      fig.path = "../figures/04_Biodiversity")
+```
+
+# Setting the Environment 
+
+## Set the seed 
+```{r}
+set.seed(76544)
+```
+
+## Load Libraries 
+```{r load-packages}
+pacman::p_load(tidyverse, devtools, patchwork, iNEXT, phyloseq, install = FALSE)
+```
+
+
+## Load in Data 
+```{r}
+load("data/02_PreProcessing/raw_preprocessed_physeq.RData")
+raw_preprocessed_physeq
+
+# Intution Check 
+min(sample_sums(raw_preprocessed_physeq))
+
+# Make metadata dataframe
+metadata_df <- 
+  raw_preprocessed_physeq %>%
+  sample_data() %>%
+  data.frame()
+
+# setting colors for the stations
+station_colors <- c(
+  "Shipping Channel" = "dodgerblue4",
+  "Aransas Bay" = "dodgerblue2",
+  "Copano West" = "#D9CC3C",
+  "Copano East" = "#A0E0BA",
+  "Mesquite Bay" = "#00ADA7")
+```
+
+# Goals 
+1. Calculate the Hill Diversity of the samples 
+2. Evaluate the rarefaction curves
+3. Evaluate the Diversity values
+4. Makes notes of the specific samples and their seq depth
+
+# Diversity Calculations with iNEXT
+
+```{r}
+#prepare input 
+iNEXT_input_df <-
+raw_preprocessed_physeq %>%
+  otu_table() %>%
+  data.frame()
+
+# Quick Check
+dim(iNEXT_input_df)
+
+# Run iNEXT: Calculate the Hill numbers
+# Note that: Species in ROWS, Samples in Columns
+
+# Remember to set the seed!
+#iNEXT_data <- iNEXT(iNEXT_input_df, q = c(0,1,2), datatype = "abundance")
+
+# Save the file 
+#save(iNEXT_data, file = "data/04_Biodiversity/iNEXT_data.RData")
+```
+q = 0; is the richness (total number of species)
+q = 1; the Shannon -- emphasizes more common taxa 
+q = 2; Simpson -- emphasized more dominant taxa
+
+
+# Evaluate the Diversity
+```{r load-div}
+load("data/04_Biodiversity/iNEXT_data.RData")
+str(iNEXT_data)
+typeof(iNEXT_data)
+```
+- the iNext package does interpolation (calculate were the max amout of sequences are in a sample) and extrapolation to 2x the library size 
+- if the observed value is less than the extrapolated value, then we should consider rarefication because there is not quite enough data 
+
+# Plot Diversity
+```{r plot-rarefaction}
+# Prepare Colors 
+color_df <- iNEXT_input_df %>%
+  colnames() %>%
+  data.frame()
+
+#Check
+head(color_df)
+# Rename the column 
+colnames(color_df)[1] <- "names"
+# Check
+head(color_df)
+
+# Make a helper dataframe for plotting with colors 
+color_df %>%
+  mutate(names = gsub(names, pattern = "[.]", replace = "-"), 
+         names = gsub(names, pattern = "X", replace = "")) %>% #fix names for merging 
+  left_join() %>%
+  head()
+```
+
+
+
